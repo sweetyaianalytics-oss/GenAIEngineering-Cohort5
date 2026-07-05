@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "kestrel": {
+      "command": "python",
+      "args": ["kestrel_mcp_server.py"]
+    }
+  }
+}

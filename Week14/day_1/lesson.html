@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP · Skills · Fine-tuning — Signal-Flow Deck</title>
+<style>
+:root{
+  --paper:#EDF1F5;
+  --panel:#FFFFFF;
+  --ink:#10203A;
+  --muted:#5A6B82;
+  --line:#C9D6E4;
+  --pipe:#1F6FEB;
+  --pipe-soft:#E4EEFD;
+  --signal:#F08C00;
+  --signal-soft:#FDF0DC;
+  --vector:#7048E8;
+  --vector-soft:#EEE9FB;
+  --term-bg:#0E1726;
+  --term-fg:#E6EDF6;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Code","Consolas",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--paper);color:var(--ink);font-family:var(--sans);overflow:hidden}
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:
+  radial-gradient(1200px 700px at 50% -10%, #F6F9FC, var(--paper));}
+#deck{position:absolute;top:50%;left:50%;width:1280px;height:720px;transform-origin:center;
+  background:var(--panel);border:1px solid var(--line);border-radius:18px;
+  box-shadow:0 24px 70px rgba(16,32,58,.18);overflow:hidden}
+
+/* ---------- persistent chrome ---------- */
+#eyebrow{position:absolute;top:26px;left:74px;z-index:5;font-family:var(--mono);font-size:13px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+#counter{position:absolute;top:26px;right:36px;z-index:5;font-family:var(--mono);font-size:13px;
+  letter-spacing:.12em;color:var(--muted)}
+.rail{position:absolute;top:0;left:0;width:44px;height:100%;z-index:4;border-right:1px solid var(--line);
+  background:linear-gradient(180deg,#F7FAFD,#EEF3F8);display:flex;align-items:center;justify-content:center}
+.rail .glyph{font-family:var(--mono);font-weight:800;color:var(--pipe);font-size:22px;
+  writing-mode:vertical-rl;letter-spacing:.5em;transform:rotate(180deg);opacity:.85}
+.progress{position:absolute;left:44px;right:0;bottom:0;height:5px;background:var(--line);z-index:5}
+#bar{height:100%;width:0;background:var(--pipe);transition:width .25s ease}
+
+/* ---------- slides ---------- */
+.slide{position:absolute;inset:0;padding:64px 74px 48px 118px;display:none;flex-direction:column;justify-content:center}
+.slide.active{display:flex}
+@keyframes riseIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes settle{from{opacity:0}to{opacity:1}}
+.slide.active .anim{animation:riseIn .22s ease both}
+.slide.active .anim2{animation:riseIn .22s ease .06s both}
+#eyebrow,#counter{animation:settle .3s ease both}
+
+/* diagram-grid frame */
+.slide[data-diagram]{background-image:
+  linear-gradient(var(--line) 1px, transparent 1px),
+  linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size:34px 34px;background-position:118px 64px;
+  background-blend-mode:normal}
+.slide[data-diagram]::after{content:"";position:absolute;inset:44px 30px 30px 60px;border:1px solid var(--line);
+  border-radius:12px;pointer-events:none;opacity:.55}
+.slide[data-diagram] > *{position:relative;z-index:1}
+
+/* ---------- typography ---------- */
+h1.title{font-size:76px;font-weight:800;letter-spacing:-.02em;line-height:1.02;margin:0}
+h2{font-size:44px;font-weight:800;letter-spacing:-.02em;line-height:1.06;margin:0 0 6px}
+.lead{font-size:23px;line-height:1.5;color:var(--ink);max-width:1000px;margin:8px 0 0}
+.sub{font-size:19px;line-height:1.5;color:var(--muted);max-width:1000px}
+.kicker{font-family:var(--mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--pipe);margin:0 0 14px;font-weight:600}
+.kicker.v{color:var(--vector)} .kicker.s{color:var(--signal)}
+ul.pts{list-style:none;padding:0;margin:18px 0 0;max-width:1010px}
+ul.pts li{position:relative;padding:6px 0 6px 30px;font-size:21px;line-height:1.45}
+ul.pts li::before{content:"|";position:absolute;left:4px;top:6px;color:var(--pipe);font-family:var(--mono);
+  font-weight:800;font-size:20px}
+b,strong{font-weight:700}
+.hl{color:var(--signal);font-weight:700}
+.hlv{color:var(--vector);font-weight:700}
+.hlp{color:var(--pipe);font-weight:700}
+
+/* ---------- pills ---------- */
+.pill{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:13px;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;padding:7px 16px;border-radius:999px;border:1px solid var(--line)}
+.pill.start{background:var(--pipe);color:#fff;border-color:var(--pipe)}
+.pill.end{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pill.node{background:#fff;color:var(--ink)}
+
+/* ---------- two-column contrast ---------- */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:22px}
+.col{border:1px solid var(--line);border-radius:14px;padding:22px 24px;background:#fff}
+.col.bad{background:linear-gradient(180deg,#fff,#FBF2F0);border-color:#E7C3BA}
+.col.good{background:linear-gradient(180deg,#fff,#F4F8FF);border-color:#BFD6F5}
+.col h3{margin:0 0 12px;font-size:16px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.col.bad h3{color:#B5502F} .col.good h3{color:var(--pipe)}
+.col ul{margin:0;padding-left:20px} .col li{font-size:18px;line-height:1.5;margin:7px 0}
+
+/* ---------- grids / cards ---------- */
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:22px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}
+.grid4{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:20px}
+.card{border:1px solid var(--line);border-radius:14px;padding:18px 20px;background:#fff}
+.card .t{font-family:var(--mono);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--pipe);font-weight:700;margin-bottom:8px}
+.card .d{font-size:17px;line-height:1.45;color:var(--ink)}
+.card .tie{margin-top:10px;font-size:14px;color:var(--muted);border-top:1px dashed var(--line);padding-top:9px}
+.card.v .t{color:var(--vector)} .card.s .t{color:var(--signal)}
+
+/* ---------- callout ---------- */
+.callout{margin-top:22px;border:1px solid var(--line);border-left:5px solid var(--pipe);border-radius:12px;
+  background:linear-gradient(180deg,#fff,#F4F8FF);padding:20px 24px;max-width:1010px}
+.callout .lbl{font-family:var(--mono);font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--pipe);font-weight:700;margin-bottom:8px}
+.callout p{margin:0;font-size:20px;line-height:1.5}
+.callout.warn{border-left-color:var(--signal);background:linear-gradient(180deg,#fff,#FDF7EE)}
+.callout.warn .lbl{color:var(--signal)}
+.callout.v{border-left-color:var(--vector);background:linear-gradient(180deg,#fff,#F6F3FD)}
+.callout.v .lbl{color:var(--vector)}
+
+/* ---------- terminal / code ---------- */
+.term{background:var(--term-bg);color:var(--term-fg);border-radius:12px;padding:18px 22px;margin-top:18px;
+  font-family:var(--mono);font-size:16px;line-height:1.55;max-width:1050px;overflow:auto;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+.term .cap{display:flex;gap:7px;margin-bottom:12px}
+.term .cap i{width:11px;height:11px;border-radius:50%;display:inline-block}
+.term .cap i:nth-child(1){background:#ff5f56}.term .cap i:nth-child(2){background:#ffbd2e}.term .cap i:nth-child(3){background:#27c93f}
+.term pre{margin:0;white-space:pre-wrap;word-break:break-word}
+.tok-kw{color:#79b8ff;font-weight:600}
+.tok-str{color:#ffcf8f}
+.tok-com{color:#6b7c93}
+.tok-fn{color:#c3a6ff}
+.tok-pipe{color:#79b8ff;font-weight:800}
+.term .prompt{color:#6b7c93}
+.term .out{color:#9fe0b8}
+.term .warnline{color:#ffcf8f}
+
+/* code chip inline */
+code.k{font-family:var(--mono);font-size:.92em;background:#EAF0F7;border:1px solid var(--line);
+  border-radius:6px;padding:1px 6px;color:var(--ink)}
+
+/* ---------- table ---------- */
+table.map{border-collapse:collapse;width:100%;max-width:1050px;margin-top:20px;font-size:17px}
+table.map th,table.map td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--line)}
+table.map th{font-family:var(--mono);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);font-weight:700}
+table.map td:first-child{font-weight:700}
+table.map .cls{font-family:var(--mono);color:var(--vector);font-weight:600}
+table.map tr:last-child td{border-bottom:none}
+
+/* ---------- svg helpers ---------- */
+.svg-wrap{margin-top:12px;display:flex;justify-content:center}
+svg{max-width:100%;height:auto}
+.chip{fill:#fff;stroke:var(--line);stroke-width:1.6}
+.chip.act{fill:var(--pipe-soft);stroke:var(--pipe);stroke-width:2.2}
+.chip.sig{fill:var(--signal-soft);stroke:var(--signal);stroke-width:2}
+.chip.vec{fill:var(--vector-soft);stroke:var(--vector);stroke-width:2}
+.chip-t{fill:var(--ink);font:700 17px var(--sans);text-anchor:middle;dominant-baseline:middle}
+.chip-s{fill:var(--muted);font:600 12px var(--mono);text-anchor:middle;dominant-baseline:middle;letter-spacing:.06em}
+.flow{stroke:var(--pipe);stroke-width:3.4;fill:none}
+.flow.dash{stroke-dasharray:6 6}
+.flow.vec{stroke:var(--vector)}
+.pipeglyph{fill:var(--pipe);font:800 30px var(--mono);text-anchor:middle;dominant-baseline:middle}
+.svg-lbl{fill:var(--muted);font:700 12px var(--mono);text-anchor:middle;letter-spacing:.1em;text-transform:uppercase}
+.svg-note{fill:var(--muted);font:600 13px var(--sans);text-anchor:middle}
+.slabtxt{fill:var(--ink);font:800 20px var(--sans);text-anchor:middle;dominant-baseline:middle}
+.slabsub{fill:var(--muted);font:600 12.5px var(--mono);text-anchor:middle;dominant-baseline:middle}
+.dot{fill:var(--vector)} .dot.q{fill:var(--signal)}
+.title-foot{margin-top:26px;color:var(--muted);font-family:var(--mono);font-size:14px;letter-spacing:.06em}
+.two{display:grid;grid-template-columns:1.05fr .95fr;gap:26px;align-items:center;margin-top:14px}
+
+@media (prefers-reduced-motion: reduce){
+  .slide.active .anim,.slide.active .anim2,#eyebrow,#counter{animation:none}
+  #bar{transition:none}
+  *{transition:none!important}
+}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="deck">
+    <div class="rail"><span class="glyph">| | |</span></div>
+    <div id="eyebrow"></div>
+    <div id="counter"></div>
+
+    <!-- 1 · TITLE -->
+    <section class="slide" data-section="MCP · SKILLS · FINE-TUNING">
+      <div class="anim"><span class="pill start">▶ Start</span></div>
+      <h1 class="title anim2" style="margin-top:22px">MCP · Skills<br>Fine-tuning</h1>
+      <p class="lead anim2" style="margin-top:18px;max-width:900px">Three ways to make a model do what you want —
+        two that <span class="hlp">extend the agent</span>, one that <span class="hl">changes the model.</span></p>
+      <div class="title-foot anim2">3-HOUR LIVE SESSION · MCP · AGENT SKILLS · LoRA / QLoRA FINE-TUNING · LIVE DEMOS</div>
+    </section>
+
+    <!-- 2 · FRAMING -->
+    <section class="slide" data-section="ORIENTATION">
+      <p class="kicker anim">Where we pick up</p>
+      <h2 class="anim">You already built agents.</h2>
+      <p class="lead anim2">Last sessions: LangGraph, Deep Agents, and a RAG demo over the Kestrel Home docs.
+        Today is <span class="hlp">two ways to extend those agents</span> — and <span class="hl">one way to change the model itself.</span></p>
+      <div class="grid3 anim2">
+        <div class="card"><div class="t">MCP</div><div class="d">A standard way to plug tools &amp; data into <b>any</b> agent — the ports.</div></div>
+        <div class="card v"><div class="t">Agent Skills</div><div class="d">Packaged, model-invoked know-how — the playbooks.</div></div>
+        <div class="card s"><div class="t">Fine-tuning</div><div class="d">Move the weights so the model behaves differently by default.</div></div>
+      </div>
+      <p class="sub anim2" style="margin-top:18px">Same running example all day: <b>Kestrel Home</b>, the smart-thermostat support company from your RAG session.</p>
+    </section>
+
+    <!-- 3 · THE CAPABILITY LADDER (spine) -->
+    <section class="slide" data-diagram="1" data-section="THE SPINE">
+      <p class="kicker anim">The one framing for the whole day</p>
+      <h2 class="anim">The capability ladder.</h2>
+      <div class="two anim2" style="grid-template-columns:1.15fr .85fr">
+        <div class="svg-wrap" style="margin-top:0">
+          <svg viewBox="0 0 520 460" width="470">
+            <defs><marker id="ml" markerWidth="12" markerHeight="12" refX="4" refY="9" orient="auto">
+              <path d="M4,0 L8,7 L0,7 Z" fill="var(--signal)"/></marker></defs>
+            <!-- cost/effort axis -->
+            <text x="20" y="30" class="svg-lbl" style="text-anchor:start;fill:var(--signal)">Heavier ↑</text>
+            <text x="20" y="440" class="svg-lbl" style="text-anchor:start;fill:var(--pipe)">Cheaper ↓</text>
+            <!-- rung 5 -->
+            <rect x="120" y="16" width="380" height="60" rx="11" class="chip sig"/>
+            <text x="310" y="40" class="slabtxt">5 · Fine-tune</text>
+            <text x="310" y="61" class="slabsub">MOVE THE WEIGHTS</text>
+            <!-- rung 4 -->
+            <rect x="120" y="104" width="380" height="60" rx="11" class="chip vec"/>
+            <text x="310" y="128" class="slabtxt">4 · Skills</text>
+            <text x="310" y="149" class="slabsub">PACKAGED KNOW-HOW</text>
+            <!-- rung 3 -->
+            <rect x="120" y="192" width="380" height="60" rx="11" class="chip act"/>
+            <text x="310" y="216" class="slabtxt">3 · Tools / MCP</text>
+            <text x="310" y="237" class="slabsub">ACT ON THE WORLD</text>
+            <!-- rung 2 -->
+            <rect x="120" y="280" width="380" height="60" rx="11" class="chip"/>
+            <text x="310" y="304" class="slabtxt">2 · RAG / context</text>
+            <text x="310" y="325" class="slabsub">GIVE IT THE FACTS</text>
+            <!-- rung 1 -->
+            <rect x="120" y="368" width="380" height="60" rx="11" class="chip"/>
+            <text x="310" y="392" class="slabtxt">1 · Prompt</text>
+            <text x="310" y="413" class="slabsub">JUST ASK WELL</text>
+            <line class="flow" x1="60" y1="398" x2="60" y2="46" marker-end="url(#ml)" style="stroke:var(--signal)"/>
+          </svg>
+        </div>
+        <div>
+          <ul class="pts" style="margin-top:0">
+            <li>One question all day: <b>how do I get the model to do what I want?</b></li>
+            <li>Rungs <b>1–2</b> you already climbed (prompt, RAG).</li>
+            <li>Today: <span class="hlp">3 · Tools/MCP</span>, <span class="hlv">4 · Skills</span>, <span class="hl">5 · Fine-tune</span>.</li>
+          </ul>
+          <div class="callout warn" style="margin-top:18px"><div class="lbl">The rule of the day</div>
+            <p>Climb only as high as the problem needs.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 · WHAT MCP IS -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · Rung 3 — Tools / MCP</p>
+      <h2 class="anim">What is MCP?</h2>
+      <p class="lead anim2">The <b>Model Context Protocol</b> is an <span class="hlp">open standard</span> for connecting AI models
+        to tools and data. You already wrote <code class="k">@tool</code> functions — MCP is the agreed-upon <b>plug shape</b>
+        so any app can use any tool, without custom glue.</p>
+      <div class="callout anim2"><div class="lbl">Anthropic's analogy</div>
+        <p><b>"USB-C for AI."</b> One connector instead of a different cable for every device. Write the server once;
+          every MCP-aware app can plug in.</p></div>
+      <p class="sub anim2" style="margin-top:16px">Open-sourced by Anthropic in late 2024, now adopted broadly across the industry.</p>
+    </section>
+
+    <!-- 5 · THE M×N PROBLEM -->
+    <section class="slide" data-diagram="1" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · Why it exists</p>
+      <h2 class="anim">The M × N integration problem.</h2>
+      <div class="two anim2">
+        <div class="svg-wrap" style="margin-top:0">
+          <svg viewBox="0 0 480 300" width="440">
+            <text x="90" y="24" class="svg-lbl" style="fill:#B5502F">M apps</text>
+            <text x="390" y="24" class="svg-lbl" style="fill:#B5502F">N tools</text>
+            <!-- apps -->
+            <rect class="chip" x="30" y="44" width="120" height="40" rx="8"/><text x="90" y="66" class="chip-s">CLAUDE</text>
+            <rect class="chip" x="30" y="104" width="120" height="40" rx="8"/><text x="90" y="126" class="chip-s">IDE</text>
+            <rect class="chip" x="30" y="164" width="120" height="40" rx="8"/><text x="90" y="186" class="chip-s">YOUR AGENT</text>
+            <!-- tools -->
+            <rect class="chip" x="330" y="44" width="120" height="40" rx="8"/><text x="390" y="66" class="chip-s">GITHUB</text>
+            <rect class="chip" x="330" y="104" width="120" height="40" rx="8"/><text x="390" y="126" class="chip-s">DB</text>
+            <rect class="chip" x="330" y="164" width="120" height="40" rx="8"/><text x="390" y="186" class="chip-s">SLACK</text>
+            <!-- tangle -->
+            <g stroke="#C99" stroke-width="1.6" fill="none" opacity=".85">
+              <line x1="150" y1="64" x2="330" y2="64"/><line x1="150" y1="64" x2="330" y2="124"/><line x1="150" y1="64" x2="330" y2="184"/>
+              <line x1="150" y1="124" x2="330" y2="64"/><line x1="150" y1="124" x2="330" y2="124"/><line x1="150" y1="124" x2="330" y2="184"/>
+              <line x1="150" y1="184" x2="330" y2="64"/><line x1="150" y1="184" x2="330" y2="124"/><line x1="150" y1="184" x2="330" y2="184"/>
+            </g>
+            <text x="240" y="262" class="svg-note" style="fill:#B5502F">M × N custom integrations</text>
+          </svg>
+        </div>
+        <div>
+          <ul class="pts" style="margin-top:0">
+            <li>Every app × every tool = a <b>bespoke integration</b> to build and maintain.</li>
+            <li>MCP collapses it to <span class="hlp">M + N</span>: each app speaks the protocol, each tool exposes it <b>once</b>.</li>
+            <li>The Kestrel ticketing system becomes <b>one server</b> — Claude Desktop, your IDE, and your agent all reach it the same way.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 · ARCHITECTURE -->
+    <section class="slide" data-diagram="1" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · Architecture</p>
+      <h2 class="anim">Host → Client → Server.</h2>
+      <div class="svg-wrap anim2">
+        <svg viewBox="0 0 1040 250" width="1000">
+          <defs><marker id="m6" markerWidth="11" markerHeight="11" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6 Z" fill="var(--pipe)"/></marker></defs>
+          <!-- host box containing client -->
+          <rect x="24" y="40" width="360" height="150" rx="14" fill="none" stroke="var(--line)" stroke-width="1.6" stroke-dasharray="6 6"/>
+          <text x="204" y="30" class="svg-lbl">Host — the AI app</text>
+          <rect class="chip act" x="60" y="70" width="130" height="66" rx="12"/><text x="125" y="97" class="chip-t">Model</text><text x="125" y="118" class="chip-s">CLAUDE</text>
+          <rect class="chip" x="220" y="70" width="130" height="66" rx="12"/><text x="285" y="97" class="chip-t">Client</text><text x="285" y="118" class="chip-s">1 PER SERVER</text>
+          <text x="204" y="172" class="svg-note">Claude Desktop · Claude Code · an IDE</text>
+          <!-- pipe to server -->
+          <line class="flow" x1="384" y1="103" x2="470" y2="103" marker-end="url(#m6)"/>
+          <text x="427" y="88" class="svg-lbl" style="fill:var(--pipe)">MCP</text>
+          <!-- server -->
+          <rect class="chip" x="478" y="66" width="180" height="74" rx="12"/><text x="568" y="95" class="chip-t">Server</text><text x="568" y="117" class="chip-s">EXPOSES CAPABILITIES</text>
+          <line class="flow" x1="658" y1="103" x2="744" y2="103" marker-end="url(#m6)"/>
+          <!-- external system -->
+          <rect class="chip sig" x="752" y="66" width="264" height="74" rx="12"/><text x="884" y="95" class="chip-t">External system</text>
+          <text x="884" y="117" class="chip-s">KESTREL TICKETS · DB · API</text>
+          <text x="520" y="228" class="svg-note">The client and server hold a 1:1 connection · one host can run many clients, one per server</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- 7 · TRANSPORTS -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · Transports — how they talk</p>
+      <h2 class="anim">Local or remote.</h2>
+      <div class="cols anim2">
+        <div class="col good"><h3>stdio — local</h3><ul>
+          <li>Server runs as a <b>subprocess on your machine</b></li>
+          <li>Talk over standard in/out — no network</li>
+          <li>Great for filesystem, local scripts, dev tools</li>
+        </ul></div>
+        <div class="col good"><h3>Streamable HTTP — remote</h3><ul>
+          <li>Server runs <b>somewhere else</b>, reached over HTTP</li>
+          <li>The current standard for hosted/remote servers</li>
+          <li>Supports streaming and multiple clients</li>
+        </ul></div>
+      </div>
+      <div class="callout warn anim2"><div class="lbl">Version note</div>
+        <p>The older <b>HTTP+SSE</b> transport is now <span class="hl">legacy</span> — Streamable HTTP replaced it as the
+          recommended remote transport (November 2025).</p></div>
+    </section>
+
+    <!-- 8 · THE 3 PRIMITIVES -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · The building blocks</p>
+      <h2 class="anim">A server exposes three things.</h2>
+      <div class="grid3 anim2">
+        <div class="card"><div class="t">Tools</div><div class="d"><b>Model-invoked actions.</b> The model decides to call them — create a Kestrel ticket, look up an order.</div>
+          <div class="tie">Like the <code class="k">@tool</code> you wrote — now standardized.</div></div>
+        <div class="card v"><div class="t">Resources</div><div class="d"><b>Read-only data / context.</b> Files, records, docs the app can load — the FAQ, a customer's device history.</div>
+          <div class="tie">Application-controlled, not called like a function.</div></div>
+        <div class="card s"><div class="t">Prompts</div><div class="d"><b>User-invoked templates.</b> Reusable, parameterized workflows a person picks — "draft an escalation reply."</div>
+          <div class="tie">Surfaced as slash-commands / menu items.</div></div>
+      </div>
+      <p class="sub anim2" style="margin-top:18px">Roughly: <span class="hlp">Tools</span> = the model acts · <span class="hlv">Resources</span> = the app supplies context ·
+        <span class="hl">Prompts</span> = the user triggers a flow.</p>
+    </section>
+
+    <!-- MCP+ A · TOOLS DEDICATED -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · Primitive 1 — Tools</p>
+      <h2 class="anim">Tools — the model takes action.</h2>
+      <p class="lead anim2">A <b>tool</b> is a function the model can choose to call. The server advertises a name, a description,
+        and a typed <span class="hlp">input schema</span> — the model reads those and decides when to invoke it. Illustrative Kestrel tool.</p>
+      <div class="term anim2">
+        <div class="cap"><i></i><i></i><i></i></div>
+<pre><span class="tok-com"># tool the Kestrel server advertises</span>
+{
+  <span class="tok-str">"name"</span>: <span class="tok-str">"lookup_warranty"</span>,
+  <span class="tok-str">"description"</span>: <span class="tok-str">"Get warranty status for a Kestrel device by SKU."</span>,
+  <span class="tok-str">"inputSchema"</span>: {
+    <span class="tok-str">"type"</span>: <span class="tok-str">"object"</span>,
+    <span class="tok-str">"properties"</span>: { <span class="tok-str">"sku"</span>: { <span class="tok-str">"type"</span>: <span class="tok-str">"string"</span> } },
+    <span class="tok-str">"required"</span>: [<span class="tok-str">"sku"</span>]
+  }
+}</pre>
+      </div>
+      <p class="sub anim2" style="margin-top:12px">Ask "is my Aria still under warranty?" and the model calls <code class="k">lookup_warranty("KH-AR-GLD")</code> on its own — the 26-month clock lives in the server, not the prompt.</p>
+    </section>
+
+    <!-- MCP+ B · RESOURCES DEDICATED -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · Primitive 2 — Resources</p>
+      <h2 class="anim">Resources — read-only context.</h2>
+      <p class="lead anim2">A <b>resource</b> is data the server exposes for the app to <span class="hlp">read</span>, addressed by a URI.
+        Unlike tools, the model doesn't invoke them — the <b>host or user</b> decides what to load into context.</p>
+      <div class="cols anim2">
+        <div class="col good"><h3>What it looks like</h3><ul>
+          <li>URI: <code class="k">kestrel://faq</code></li>
+          <li>Returns the support FAQ text as context</li>
+          <li>Others: <code class="k">kestrel://device/{id}/history</code></li>
+        </ul></div>
+        <div class="col good"><h3>How it differs from a tool</h3><ul>
+          <li><b>App / user-controlled</b>, not model-invoked</li>
+          <li>No side effects — a pure read</li>
+          <li>Think "attach a file", not "call a function"</li>
+        </ul></div>
+      </div>
+      <p class="sub anim2" style="margin-top:14px">Resources are how a server offers <span class="hlp">context</span>; tools are how it offers <b>actions.</b></p>
+    </section>
+
+    <!-- MCP+ C · PROMPTS DEDICATED -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · Primitive 3 — Prompts</p>
+      <h2 class="anim">Prompts — user-invoked templates.</h2>
+      <p class="lead anim2">A <b>prompt</b> is a reusable, parameterized message a <span class="hlp">person</span> triggers — think
+        <b>slash-commands</b>. The server ships the template; the user fills the blanks.</p>
+      <div class="term anim2">
+        <div class="cap"><i></i><i></i><i></i></div>
+<pre><span class="tok-com"># prompt exposed by the Kestrel server</span>
+{
+  <span class="tok-str">"name"</span>: <span class="tok-str">"support_reply"</span>,
+  <span class="tok-str">"description"</span>: <span class="tok-str">"Draft a Kestrel-voice reply to a ticket."</span>,
+  <span class="tok-str">"arguments"</span>: [{ <span class="tok-str">"name"</span>: <span class="tok-str">"ticket"</span>, <span class="tok-str">"required"</span>: true }]
+}
+
+<span class="prompt">user types:</span>  /support_reply ticket=#8842</pre>
+      </div>
+      <p class="sub anim2" style="margin-top:12px">Tools the model picks · resources the app supplies · <span class="hl">prompts the user fires</span> — three ways context reaches the model.</p>
+    </section>
+
+    <!-- MCP+ D · ON THE WIRE -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · Under the protocol</p>
+      <h2 class="anim">One tool call, on the wire.</h2>
+      <p class="sub anim2">MCP rides on JSON-RPC. When the model calls <code class="k">lookup_warranty</code>, this is what actually crosses the connection. Illustrative.</p>
+      <div class="term anim2">
+        <div class="cap"><i></i><i></i><i></i></div>
+<pre><span class="tok-com">// request — host → server</span>
+{ <span class="tok-str">"method"</span>: <span class="tok-str">"tools/call"</span>,
+  <span class="tok-str">"params"</span>: { <span class="tok-str">"name"</span>: <span class="tok-str">"lookup_warranty"</span>,
+             <span class="tok-str">"arguments"</span>: { <span class="tok-str">"sku"</span>: <span class="tok-str">"KH-AR-GLD"</span> } } }
+
+<span class="tok-com">// result — server → host</span>
+{ <span class="tok-str">"content"</span>: [{ <span class="tok-str">"type"</span>: <span class="tok-str">"text"</span>,
+    <span class="tok-str">"text"</span>: <span class="tok-str">"Aria · covered · 26-month warranty · 14 months left"</span> }] }</pre>
+      </div>
+      <p class="sub anim2" style="margin-top:12px">The model never touches your database — only this typed request and text result. That envelope is the whole standard.</p>
+    </section>
+
+    <!-- MCP+ E · BUILD YOUR OWN -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · Write one yourself</p>
+      <h2 class="anim">Build a server in ~30 lines.</h2>
+      <p class="sub anim2">The <code class="k">FastMCP</code> helper turns a decorated Python function into a full MCP server. Illustrative.</p>
+      <div class="term anim2">
+        <div class="cap"><i></i><i></i><i></i></div>
+<pre><span class="tok-kw">from</span> mcp.server.fastmcp <span class="tok-kw">import</span> FastMCP
+
+mcp = <span class="tok-fn">FastMCP</span>(<span class="tok-str">"kestrel"</span>)
+
+<span class="tok-fn">@mcp.tool()</span>
+<span class="tok-kw">def</span> <span class="tok-fn">lookup_warranty</span>(sku: str) -&gt; str:
+    <span class="tok-str">"""Get warranty status for a Kestrel device by SKU."""</span>
+    <span class="tok-kw">return</span> warranty_db.<span class="tok-fn">status</span>(sku)
+
+<span class="tok-kw">if</span> __name__ == <span class="tok-str">"__main__"</span>:
+    mcp.<span class="tok-fn">run</span>()</pre>
+      </div>
+      <p class="sub anim2" style="margin-top:12px">The docstring becomes the description; the type hints become the schema. You just made a tool <b>any</b> MCP agent can use.</p>
+    </section>
+
+    <!-- MCP+ F · REMOTE + TRUST -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · Remote servers &amp; trust</p>
+      <h2 class="anim">Going remote — and staying safe.</h2>
+      <div class="cols anim2">
+        <div class="col good"><h3>stdio — local</h3><ul>
+          <li>Subprocess on your machine, no network</li>
+          <li>Runs with <b>your</b> permissions</li>
+        </ul></div>
+        <div class="col good"><h3>Streamable HTTP — remote</h3><ul>
+          <li>Hosted elsewhere, reached over HTTP</li>
+          <li><b>OAuth 2.1</b> + MCP Gateways (2026) for auth</li>
+        </ul></div>
+      </div>
+      <div class="callout warn anim2"><div class="lbl">Security note</div>
+        <p>A server runs with <b>your</b> access, and a tool result can carry <span class="hl">prompt injection</span> back into the model.
+          Vet untrusted servers before you connect — treat them like code you're about to run.</p></div>
+    </section>
+
+    <!-- MCP+ G · MCP INSIDE LANGGRAPH -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · The stack you already know</p>
+      <h2 class="anim">MCP inside LangGraph.</h2>
+      <p class="lead anim2"><code class="k">langchain-mcp-adapters</code> loads a server's tools straight into a LangGraph agent —
+        the framework from your last session, now speaking MCP.</p>
+      <div class="term anim2">
+        <div class="cap"><i></i><i></i><i></i></div>
+<pre><span class="tok-kw">from</span> langchain_mcp_adapters.client <span class="tok-kw">import</span> MultiServerMCPClient
+<span class="tok-kw">from</span> langgraph.prebuilt <span class="tok-kw">import</span> create_react_agent
+
+client = <span class="tok-fn">MultiServerMCPClient</span>({<span class="tok-str">"kestrel"</span>: {
+    <span class="tok-str">"url"</span>: <span class="tok-str">"https://kestrel.internal/mcp"</span>,
+    <span class="tok-str">"transport"</span>: <span class="tok-str">"streamable_http"</span>}})
+tools = <span class="tok-kw">await</span> client.<span class="tok-fn">get_tools</span>()
+agent = <span class="tok-fn">create_react_agent</span>(<span class="tok-str">"anthropic:claude-sonnet-4-5"</span>, tools)</pre>
+      </div>
+      <p class="sub anim2" style="margin-top:12px">Same LangGraph <code class="k">create_react_agent</code> you already wrote — the tools now come from an MCP server instead of local <code class="k">@tool</code> functions.</p>
+    </section>
+
+    <!-- 9 · NEWER CAPABILITIES -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · Beyond the basics</p>
+      <h2 class="anim">Newer capabilities.</h2>
+      <div class="grid4 anim2">
+        <div class="card"><div class="t">Sampling</div><div class="d">A server can ask the host's model to <b>run a completion</b> — the server borrows the LLM.</div></div>
+        <div class="card"><div class="t">Elicitation</div><div class="d">A server can <b>ask the user for input</b> mid-run — e.g. confirm an order number.</div></div>
+        <div class="card v"><div class="t">2026 direction</div><div class="d"><b>OAuth 2.1</b> auth, <b>MCP Gateways</b>, and <b>Server Cards</b> for discovery &amp; trust.</div></div>
+        <div class="card s"><div class="t">A2A</div><div class="d"><b>Agent-to-Agent</b> — a complementary standard for agents talking to <i>each other</i>.</div></div>
+      </div>
+      <p class="sub anim2" style="margin-top:16px">You don't need these on day one — but they signal where the ecosystem is heading: auth, discovery, and agents composing agents.</p>
+    </section>
+
+    <!-- 10 · ECOSYSTEM -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · Who speaks MCP</p>
+      <h2 class="anim">The ecosystem, already here.</h2>
+      <div class="cols anim2">
+        <div class="col good"><h3>Hosts (MCP clients)</h3><ul>
+          <li><b>Claude Desktop</b> — add servers in config</li>
+          <li><b>Claude Code</b> — itself an MCP client</li>
+          <li><b>IDEs</b> and other agent apps</li>
+        </ul></div>
+        <div class="col good"><h3>Servers &amp; adopters</h3><ul>
+          <li>Reference servers: filesystem, GitHub, more</li>
+          <li>Companies shipping servers — <b>Stripe, Vercel</b></li>
+          <li>A growing public registry of community servers</li>
+        </ul></div>
+      </div>
+      <div class="callout anim2"><div class="lbl">The payoff</div>
+        <p>Because it is a standard, a server someone else wrote plugs straight into <span class="hlp">your</span> agent — and yours into theirs.</p></div>
+    </section>
+
+    <!-- 11 · CONFIG EXAMPLE -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · Wiring one up</p>
+      <h2 class="anim">Ten lines of config.</h2>
+      <p class="sub anim2"><code class="k">claude_desktop_config.json</code> — add a local filesystem server and a GitHub server. Illustrative.</p>
+      <div class="term anim2">
+        <div class="cap"><i></i><i></i><i></i></div>
+<pre><span class="tok-str">"mcpServers"</span>: {
+  <span class="tok-str">"kestrel-docs"</span>: {
+    <span class="tok-str">"command"</span>: <span class="tok-str">"npx"</span>,
+    <span class="tok-str">"args"</span>: [<span class="tok-str">"-y"</span>, <span class="tok-str">"@modelcontextprotocol/server-filesystem"</span>, <span class="tok-str">"/kestrel/docs"</span>]
+  },
+  <span class="tok-str">"github"</span>: {
+    <span class="tok-str">"command"</span>: <span class="tok-str">"npx"</span>,
+    <span class="tok-str">"args"</span>: [<span class="tok-str">"-y"</span>, <span class="tok-str">"@modelcontextprotocol/server-github"</span>],
+    <span class="tok-str">"env"</span>: { <span class="tok-str">"GITHUB_TOKEN"</span>: <span class="tok-str">"ghp_••••"</span> }
+  }
+}</pre>
+      </div>
+      <p class="sub anim2" style="margin-top:12px">Restart the host and both servers' tools appear — the model can now read the Kestrel docs folder and open GitHub issues.</p>
+    </section>
+
+    <!-- 12 · TIE-BACK -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker anim">01 · The point to land</p>
+      <h2 class="anim">It's the <code style="font-size:.8em" class="k">@tool</code> you already wrote — standardized.</h2>
+      <p class="lead anim2">Last session you decorated a Python function so <b>one</b> agent could call it. MCP is that same idea,
+        given a <span class="hlp">wire protocol</span> so <b>any</b> app can call it — and the tool lives in its own process.</p>
+      <div class="callout v anim2"><div class="lbl">Mind-bender to leave them with</div>
+        <p><b>Claude Code is itself an MCP client.</b> The assistant you use to build agents is the same kind of host you are
+          now configuring — it plugs into servers exactly like this.</p></div>
+    </section>
+
+    <!-- 13 · MCP DEMO RUN-OF-SHOW -->
+    <section class="slide" data-section="SECTION 01 · MCP">
+      <p class="kicker s anim">01 · Demo — run of show</p>
+      <h2 class="anim">Watch Claude call a live server.</h2>
+      <div class="grid3 anim2">
+        <div class="card"><div class="t">1 · Connect</div><div class="d">Point the host at an existing <b>Kestrel ticketing</b> MCP server (already running).</div></div>
+        <div class="card"><div class="t">2 · Ask</div><div class="d">"A customer smells burning from their Aria — open the right ticket."</div></div>
+        <div class="card s"><div class="t">3 · Watch</div><div class="d">The model picks the <code class="k">create_ticket</code> tool and sets <b>Tier 3</b> — no glue code from us.</div></div>
+      </div>
+      <div class="callout warn anim2"><div class="lbl">What to notice</div>
+        <p>We wrote <b>zero</b> integration code for this session. The tool was advertised by the server; the model chose it —
+          and "burning smell" correctly routed to <span class="hl">Tier 3 Safety Response.</span></p></div>
+    </section>
+
+    <!-- 14 · WHAT IS A SKILL -->
+    <section class="slide" data-section="SECTION 02 · SKILLS">
+      <p class="kicker v anim">02 · Rung 4 — Agent Skills</p>
+      <h2 class="anim">What is an Agent Skill?</h2>
+      <p class="lead anim2">A <b>folder</b> the model can open when it's relevant. At minimum one file —
+        <code class="k">SKILL.md</code> — plus optional scripts and reference files bundled alongside.</p>
+      <div class="svg-wrap anim2">
+        <svg viewBox="0 0 900 150" width="820">
+          <rect class="chip vec" x="30" y="40" width="230" height="70" rx="12"/><text x="145" y="68" class="chip-t">kestrel-escalation/</text><text x="145" y="90" class="chip-s">THE SKILL FOLDER</text>
+          <rect class="chip" x="300" y="40" width="180" height="70" rx="12"/><text x="390" y="68" class="chip-t">SKILL.md</text><text x="390" y="90" class="chip-s">INSTRUCTIONS</text>
+          <rect class="chip" x="510" y="40" width="170" height="70" rx="12"/><text x="595" y="68" class="chip-t">scripts/</text><text x="595" y="90" class="chip-s">OPTIONAL CODE</text>
+          <rect class="chip" x="710" y="40" width="170" height="70" rx="12"/><text x="795" y="68" class="chip-t">references/</text><text x="795" y="90" class="chip-s">OPTIONAL DOCS</text>
+        </svg>
+      </div>
+      <p class="sub anim2" style="margin-top:14px">Think of it as an <b>onboarding packet</b> for a specific task — how Kestrel handles escalations — that the model reads only when needed.</p>
+    </section>
+
+    <!-- 15 · PROGRESSIVE DISCLOSURE -->
+    <section class="slide" data-diagram="1" data-section="SECTION 02 · SKILLS">
+      <p class="kicker v anim">02 · The core mechanism</p>
+      <h2 class="anim">Progressive disclosure.</h2>
+      <div class="two anim2" style="grid-template-columns:1fr 1fr">
+        <div class="svg-wrap" style="margin-top:0">
+          <svg viewBox="0 0 460 320" width="420">
+            <defs><marker id="m15" markerWidth="12" markerHeight="12" refX="4" refY="9" orient="auto">
+              <path d="M4,0 L8,7 L0,7 Z" fill="var(--vector)"/></marker></defs>
+            <rect x="70" y="12" width="320" height="66" rx="12" class="chip vec"/>
+            <text x="230" y="38" class="slabtxt">1 · Name + description</text>
+            <text x="230" y="60" class="slabsub">ALWAYS LOADED · ~500 TOKENS TOTAL</text>
+            <line class="flow vec" x1="230" y1="106" x2="230" y2="86" marker-end="url(#m15)"/>
+            <rect x="70" y="110" width="320" height="66" rx="12" class="chip act"/>
+            <text x="230" y="136" class="slabtxt">2 · SKILL.md body</text>
+            <text x="230" y="158" class="slabsub">LOADED WHEN RELEVANT · &lt;500 LINES</text>
+            <line class="flow vec" x1="230" y1="204" x2="230" y2="184" marker-end="url(#m15)"/>
+            <rect x="70" y="208" width="320" height="66" rx="12" class="chip"/>
+            <text x="230" y="234" class="slabtxt">3 · Files + scripts</text>
+            <text x="230" y="256" class="slabsub">PULLED IN ON DEMAND</text>
+            <text x="230" y="300" class="svg-note">Only what's needed, only when it's needed</text>
+          </svg>
+        </div>
+        <div>
+          <ul class="pts" style="margin-top:0">
+            <li><b>Tier 1</b> — just the name + one-line description sits in context, always.</li>
+            <li><b>Tier 2</b> — when the task matches, the model reads the full <code class="k">SKILL.md</code>.</li>
+            <li><b>Tier 3</b> — it opens extra files or runs a script only if the job calls for it.</li>
+          </ul>
+          <div class="callout v" style="margin-top:16px"><div class="lbl">Why it matters</div>
+            <p>Context stays tiny until a skill is actually in play.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 16 · 140x BIG NUMBER -->
+    <section class="slide" data-section="SECTION 02 · SKILLS">
+      <p class="kicker v anim">02 · The efficiency win</p>
+      <h2 class="anim">Why progressive disclosure pays off.</h2>
+      <div class="anim2" style="display:flex;align-items:center;gap:40px;margin-top:20px">
+        <div style="font-size:150px;font-weight:800;letter-spacing:-.03em;line-height:.9;color:var(--vector)">~140×</div>
+        <div style="max-width:560px">
+          <p class="lead" style="margin-top:0">The always-loaded index for a skill is about <b>500 tokens.</b>
+            Loading <i>all</i> its docs up front could be <b>~70,000 tokens.</b></p>
+          <p class="sub" style="margin-top:10px">So the model can "know about" dozens of skills for a rounding error of context —
+            and only pay the full cost for the one it actually uses.</p>
+        </div>
+      </div>
+      <div class="callout v anim2"><div class="lbl">The trade</div>
+        <p>A tiny table of contents, always present · the full chapter, only when opened.</p></div>
+    </section>
+
+    <!-- 17 · MODEL-INVOKED -->
+    <section class="slide" data-section="SECTION 02 · SKILLS">
+      <p class="kicker v anim">02 · How a skill fires</p>
+      <h2 class="anim">The model picks it — like a tool.</h2>
+      <p class="lead anim2">Nobody flips a switch. The model reads each skill's <b>description</b>, matches it against the task,
+        and decides to open the relevant one — the <span class="hlv">same selection instinct</span> it uses to choose a tool.</p>
+      <ul class="pts anim2">
+        <li>So the <b>description is load-bearing</b> — write it like the trigger it is: "Use when handling a Kestrel support escalation."</li>
+        <li>A vague description means the skill never fires; a sharp one means it fires at exactly the right moment.</li>
+      </ul>
+      <div class="callout anim2"><div class="lbl">Same muscle you already trust</div>
+        <p>You already rely on the model to pick the right tool from a description. A skill is picked the very same way.</p></div>
+    </section>
+
+    <!-- 18 · MCP vs SKILLS -->
+    <section class="slide" data-section="SECTION 02 · SKILLS">
+      <p class="kicker anim">02 · Don't confuse them</p>
+      <h2 class="anim">MCP vs Skills.</h2>
+      <div class="cols anim2">
+        <div class="col good"><h3>MCP — a live connection</h3><ul>
+          <li>A <b>link to an external system</b>: a DB, an API, the ticketing app</li>
+          <li>Runs code in another process, over a protocol</li>
+          <li>Answers "what can the agent <b>reach</b>?"</li>
+        </ul></div>
+        <div class="col good"><h3>Skills — packaged know-how</h3><ul>
+          <li>A <b>folder of instructions</b> (+ optional code) the model reads</li>
+          <li>Loads into context; can itself call MCP tools</li>
+          <li>Answers "how should the agent <b>do this task</b>?"</li>
+        </ul></div>
+      </div>
+      <div class="callout v anim2"><div class="lbl">They're complementary</div>
+        <p>A Kestrel <b>escalation skill</b> can say "then call the <code class="k">create_ticket</code> MCP tool at Tier 2." Knowledge guides;
+          the connection acts.</p></div>
+    </section>
+
+    <!-- 19 · SKILL.md ANATOMY -->
+    <section class="slide" data-section="SECTION 02 · SKILLS">
+      <p class="kicker v anim">02 · Anatomy</p>
+      <h2 class="anim">Inside a <code style="font-size:.8em" class="k">SKILL.md</code>.</h2>
+      <p class="sub anim2">Frontmatter (always loaded) + Markdown body (loaded on match). Illustrative Kestrel skill.</p>
+      <div class="term anim2">
+        <div class="cap"><i></i><i></i><i></i></div>
+<pre><span class="tok-com">---</span>
+<span class="tok-kw">name</span>: kestrel-escalation
+<span class="tok-kw">description</span>: <span class="tok-str">Route Kestrel support tickets. Use when a customer issue</span>
+  <span class="tok-str">is unresolved &gt;72h or mentions fire/smoke/burning/sparking.</span>
+<span class="tok-com">---</span>
+
+<span class="tok-fn"># Escalation playbook</span>
+
+1. Safety words (fire, smoke, burning smell, sparking) &rarr; <span class="tok-str">Tier 3</span> now,
+   bypass the queue. Do not route manually.
+2. Unresolved &gt; 72h &rarr; auto-escalate to a <span class="tok-str">Tier 2</span> specialist.
+3. Otherwise open a Tier 2 ticket &mdash; owner: Marcus Webb, ext 4471.
+
+See <span class="tok-str">references/sla_table.md</span> for full response-time targets.</pre>
+      </div>
+    </section>
+
+    <!-- SKILLS+ A · ANATOMY -->
+    <section class="slide" data-section="SECTION 02 · SKILLS">
+      <p class="kicker v anim">02 · Anatomy of a skill</p>
+      <h2 class="anim">Frontmatter, body, and links.</h2>
+      <p class="sub anim2">A skill is a folder. <code class="k">SKILL.md</code> carries metadata + instructions and can point to other files. Illustrative.</p>
+      <div class="term anim2">
+        <div class="cap"><i></i><i></i><i></i></div>
+<pre><span class="tok-com">kestrel-support/</span>
+├─ SKILL.md
+└─ reference.md
+
+<span class="tok-com">--- SKILL.md ---</span>
+<span class="tok-com">---</span>
+<span class="tok-kw">name</span>: kestrel-support
+<span class="tok-kw">description</span>: <span class="tok-str">Answer Kestrel Home support questions on warranty,</span>
+  <span class="tok-str">returns, and promo codes. Use for any Kestrel customer reply.</span>
+<span class="tok-com">---</span>
+Follow the Kestrel voice. For exact policy numbers,
+read <span class="tok-str">reference.md</span> (12% restocking, 26-month warranty).</pre>
+      </div>
+      <p class="sub anim2" style="margin-top:12px">Two fields are required — <b>name</b> and <b>description</b>. Everything else is prose the model reads only on a match.</p>
+    </section>
+
+    <!-- SKILLS+ B · DESCRIPTION IS THE TRIGGER -->
+    <section class="slide" data-section="SECTION 02 · SKILLS">
+      <p class="kicker v anim">02 · The one line that matters</p>
+      <h2 class="anim">The description is the trigger.</h2>
+      <p class="lead anim2">Claude never reads a skill's body until the <b>description</b> matches the task. That single line is the whole
+        firing mechanism — so write it for <span class="hlv">when to use the skill</span>, not what it contains.</p>
+      <div class="cols anim2">
+        <div class="col bad"><h3>Vague — never fires</h3><ul>
+          <li><i>"Kestrel support helper."</i></li>
+          <li>No trigger, no situation — the model can't tell when it applies</li>
+        </ul></div>
+        <div class="col good"><h3>Sharp — fires on cue</h3><ul>
+          <li><i>"Use when a customer asks about Kestrel warranty, returns, or promo codes."</i></li>
+          <li>Names the exact moment to open it</li>
+        </ul></div>
+      </div>
+      <div class="callout v anim2"><div class="lbl">Rule of thumb</div>
+        <p>Start the description with <b>"Use when…"</b> and name concrete triggers. That phrasing is what Claude matches on.</p></div>
+    </section>
+
+    <!-- SKILLS+ C · SKILLS CAN RUN CODE -->
+    <section class="slide" data-section="SECTION 02 · SKILLS">
+      <p class="kicker v anim">02 · Not just prose</p>
+      <h2 class="anim">Skills can run code.</h2>
+      <p class="lead anim2">A skill can bundle <b>executable scripts</b> next to its instructions. Claude runs them via bash when the
+        task needs deterministic logic — <span class="hlv">code where code is better</span>, prose where prose is better.</p>
+      <div class="term anim2">
+        <div class="cap"><i></i><i></i><i></i></div>
+<pre><span class="tok-com">kestrel-support/</span>
+├─ SKILL.md
+└─ scripts/
+   └─ classify.py     <span class="tok-com"># tier from ticket text</span>
+
+<span class="tok-com"># SKILL.md says:</span>
+Run <span class="tok-str">scripts/classify.py</span> on the ticket to get the tier,
+then reply.  (fire/smoke &rarr; Tier 3 · &gt;72h &rarr; Tier 2)</pre>
+      </div>
+      <p class="sub anim2" style="margin-top:12px">The escalation rules become <b>code that runs the same way every time</b> — not something the model re-derives on each ticket.</p>
+    </section>
+
+    <!-- SKILLS+ D · WHERE SKILLS LIVE -->
+    <section class="slide" data-section="SECTION 02 · SKILLS">
+      <p class="kicker v anim">02 · Where skills live</p>
+      <h2 class="anim">Same folder, three homes.</h2>
+      <div class="grid3 anim2">
+        <div class="card v"><div class="t">Claude Code</div><div class="d">Drop the folder in your skills directory — Claude Code lists it and opens it when relevant.</div></div>
+        <div class="card v"><div class="t">The API</div><div class="d">Upload the skill and reference it in a request — the same folder, delivered to the model.</div></div>
+        <div class="card v"><div class="t">The Agent SDK</div><div class="d">Register skills when you build your own agent — portable across whatever you ship.</div></div>
+      </div>
+      <div class="callout v anim2"><div class="lbl">One format everywhere</div>
+        <p>A skill is <b>just a folder.</b> Write it once; the same directory works in Claude Code, the API, and the Agent SDK.</p></div>
+    </section>
+
+    <!-- SKILLS+ E · LANDSCAPE TABLE -->
+    <section class="slide" data-section="SECTION 02 · SKILLS">
+      <p class="kicker v anim">02 · The landscape</p>
+      <h2 class="anim">Skill vs Tool vs MCP vs Subagent.</h2>
+      <table class="map anim2">
+        <tr><th>Thing</th><th>What it is</th><th>For</th></tr>
+        <tr><td>Tool</td><td>A single callable function the model invokes</td><td class="cls">one action</td></tr>
+        <tr><td>MCP</td><td>A standard connection exposing tools, resources, prompts</td><td class="cls">reach a system</td></tr>
+        <tr><td>Skill</td><td>A folder of instructions (+ optional code) the model reads</td><td class="cls">how to do a task</td></tr>
+        <tr><td>Subagent</td><td>A separate agent with its own context and tools</td><td class="cls">delegate a job</td></tr>
+      </table>
+      <p class="sub anim2" style="margin-top:16px">Tools and MCP give the agent <b>reach</b>; skills give it <b>know-how</b>; subagents give it <b>hands to delegate to.</b></p>
+    </section>
+
+    <!-- 20 · SKILLS DEMO -->
+    <section class="slide" data-section="SECTION 02 · SKILLS">
+      <p class="kicker s anim">02 · Demo — run of show</p>
+      <h2 class="anim">Drop the folder in, ask, watch.</h2>
+      <div class="grid3 anim2">
+        <div class="card v"><div class="t">1 · Install</div><div class="d">Place the <code class="k">kestrel-escalation/</code> folder where the agent looks for skills.</div></div>
+        <div class="card v"><div class="t">2 · Ask</div><div class="d">"This ticket has been open four days with no reply — what do I do?"</div></div>
+        <div class="card s"><div class="t">3 · Watch</div><div class="d">The model matches the description, opens <code class="k">SKILL.md</code>, and applies the <b>72h → Tier 2</b> rule.</div></div>
+      </div>
+      <div class="callout anim2"><div class="lbl">What to notice</div>
+        <p>We never told it to use the skill. It <span class="hlv">chose</span> to — and followed a playbook we can version, review, and share like any other file.</p></div>
+    </section>
+
+    <!-- 21 · SKILLS TIE-BACK -->
+    <section class="slide" data-section="SECTION 02 · SKILLS">
+      <p class="kicker v anim">02 · The point to land</p>
+      <h2 class="anim">It's your prompt-engineering — packaged.</h2>
+      <p class="lead anim2">The system prompts and middleware you hand-crafted per agent become a <b>portable folder</b>:
+        <span class="hlv">model-invoked</span>, bundling code, versioned in git, and shareable across every agent and teammate.</p>
+      <div class="callout v anim2"><div class="lbl">See it right now</div>
+        <p><b>Claude Code lists dozens of skills</b> as you work — each one a folder exactly like this, surfaced by its description,
+          opened only when the task fits.</p></div>
+    </section>
+
+    <!-- 22 · DECISION TREE -->
+    <section class="slide" data-diagram="1" data-section="SECTION 03 · DECIDING">
+      <p class="kicker anim">03 · Choosing a rung</p>
+      <h2 class="anim">The ladder as a decision tree.</h2>
+      <table class="map anim2">
+        <tr><th>Rung</th><th>Reach for it when…</th><th>Cost</th></tr>
+        <tr><td>1 · Prompt</td><td>Behavior is close — you just need to ask more precisely.</td><td class="cls">minutes</td></tr>
+        <tr><td>2 · RAG / context</td><td>The model needs <b>facts it doesn't have</b> — your docs, live data.</td><td class="cls">hours</td></tr>
+        <tr><td>3 · Tools / MCP</td><td>It must <b>act</b> — read a DB, open a ticket, hit an API.</td><td class="cls">hours–days</td></tr>
+        <tr><td>4 · Skills</td><td>You have a <b>repeatable how-to</b> to package and reuse.</td><td class="cls">hours–days</td></tr>
+        <tr><td>5 · Fine-tune</td><td>You need a <b>consistent behavior / format / voice</b> nothing above gives.</td><td class="cls">days–weeks</td></tr>
+      </table>
+      <p class="sub anim2" style="margin-top:16px">Start at the bottom. Only climb when the rung below genuinely can't do it.</p>
+    </section>
+
+    <!-- 23 · WHY FT IS LAST -->
+    <section class="slide" data-section="SECTION 03 · DECIDING">
+      <p class="kicker s anim">03 · The order is deliberate</p>
+      <h2 class="anim">Why fine-tuning is last.</h2>
+      <div class="cols anim2">
+        <div class="col bad"><h3>What fine-tuning costs you</h3><ul>
+          <li>You must <b>curate a dataset</b> — the real work</li>
+          <li>A <b>training run</b> + evaluation loop</li>
+          <li><b>Maintenance forever</b>: retrain on every base-model upgrade</li>
+          <li>A new artifact to host, version, and monitor</li>
+        </ul></div>
+        <div class="col good"><h3>What the rungs below cost</h3><ul>
+          <li>Edit a prompt — instant</li>
+          <li>Point RAG at a new doc — minutes</li>
+          <li>Add an MCP server — no model change</li>
+          <li>Drop in a skill folder — no model change</li>
+        </ul></div>
+      </div>
+      <p class="sub anim2" style="margin-top:16px">Everything below rung 5 changes <b>around</b> the model. Only fine-tuning changes the model — and that's the expensive part to keep alive.</p>
+    </section>
+
+    <!-- 24 · MOST PROBLEMS -->
+    <section class="slide" data-section="SECTION 03 · DECIDING">
+      <p class="kicker anim">03 · The mindset</p>
+      <h2 class="anim">Most problems never reach rung 5.</h2>
+      <div class="callout warn anim2" style="margin-top:24px"><div class="lbl">Land this sentence</div>
+        <p style="font-size:24px">Most problems are solved <b>before</b> you fine-tune — by a better prompt, the right context,
+          a tool, or a skill.</p></div>
+      <p class="lead anim2" style="margin-top:24px">Fine-tuning is a <span class="hl">real</span> and powerful tool. It is just the
+        <span class="hl">last</span> one you reach for — when you've proven the cheaper rungs can't get you there.</p>
+    </section>
+
+    <!-- 25 · WHAT FT IS -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · Rung 5 — Fine-tuning</p>
+      <h2 class="anim">You keep training the model.</h2>
+      <p class="lead anim2">Prompting, RAG, tools, skills <b>never change the model</b> — they change what surrounds it.
+        Fine-tuning is different: you <span class="hl">continue training</span> on your own examples, and the model's
+        <b>weights actually move.</b></p>
+      <div class="cols anim2">
+        <div class="col good"><h3>Everything below rung 5</h3><ul>
+          <li>Model weights stay <b>frozen</b></li>
+          <li>You change the <b>context</b> around it</li>
+          <li>Reversible instantly — edit and re-run</li>
+        </ul></div>
+        <div class="col good"><h3>Fine-tuning</h3><ul>
+          <li>Weights are <b>updated</b> by training</li>
+          <li>New default behavior baked <b>into</b> the model</li>
+          <li>Produces a new model artifact you own</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <!-- 26 · FULL vs LoRA vs QLoRA -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · Three ways to do it</p>
+      <h2 class="anim">Full FT → LoRA → QLoRA.</h2>
+      <div class="grid3 anim2">
+        <div class="card"><div class="t">Full fine-tune</div><div class="d">Update <b>every weight.</b> Most powerful, most expensive — needs serious GPU hardware and storage.</div></div>
+        <div class="card v"><div class="t">LoRA</div><div class="d"><b>Freeze the base</b>; train tiny <b>adapter matrices</b> instead. ~1% of the params, a small file to ship.</div></div>
+        <div class="card s"><div class="t">QLoRA</div><div class="d">LoRA on a <b>4-bit quantized</b> base. Fits training onto <b>one consumer / free-T4 GPU.</b></div></div>
+      </div>
+      <div class="callout warn anim2"><div class="lbl">The recommendation</div>
+        <p><b>Start with QLoRA.</b> It's the cheapest thing that actually works — you can run it on a free Colab T4 today.</p></div>
+    </section>
+
+    <!-- 27 · LoRA HOW -->
+    <section class="slide" data-diagram="1" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker v anim">04 · How LoRA works</p>
+      <h2 class="anim">Train a small adapter, freeze the rest.</h2>
+      <div class="two anim2">
+        <div class="svg-wrap" style="margin-top:0">
+          <svg viewBox="0 0 460 280" width="420">
+            <defs><marker id="m27" markerWidth="11" markerHeight="11" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L8,3 L0,6 Z" fill="var(--vector)"/></marker></defs>
+            <!-- frozen base -->
+            <rect class="chip" x="40" y="90" width="150" height="110" rx="12"/>
+            <text x="115" y="132" class="chip-t">Base weights</text>
+            <text x="115" y="156" class="chip-s">FROZEN · 🔒</text>
+            <!-- adapters -->
+            <rect class="chip vec" x="270" y="60" width="120" height="52" rx="10"/><text x="330" y="86" class="chip-t">Adapter A</text>
+            <rect class="chip vec" x="270" y="180" width="120" height="52" rx="10"/><text x="330" y="206" class="chip-t">Adapter B</text>
+            <line class="flow vec" x1="190" y1="120" x2="266" y2="88" marker-end="url(#m27)"/>
+            <line class="flow vec" x1="190" y1="170" x2="266" y2="204" marker-end="url(#m27)"/>
+            <text x="330" y="140" class="svg-note" style="fill:var(--vector)">only these train</text>
+          </svg>
+        </div>
+        <div>
+          <ul class="pts" style="margin-top:0">
+            <li>The big base matrix stays <b>locked</b> — you never touch it.</li>
+            <li>Two <b>small matrices</b> (rank <code class="k">r</code>) learn the adjustment and add on top.</li>
+            <li>You ship just those adapters — <b>megabytes, not gigabytes.</b></li>
+          </ul>
+          <div class="callout v" style="margin-top:16px"><div class="lbl">QLoRA's extra trick</div>
+            <p>Load that frozen base in <b>4-bit</b> — same adapters, a fraction of the memory.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 28 · DATA IS 80% -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · The real work</p>
+      <h2 class="anim">The data is 80% of the job.</h2>
+      <p class="lead anim2">Training is a script you run. The hard, valuable part is <b>curating examples</b> —
+        usually <span class="hl">instruction / response pairs</span> in JSONL. Quality beats quantity, badly.</p>
+      <div class="term anim2">
+        <div class="cap"><i></i><i></i><i></i></div>
+<pre><span class="tok-com">// kestrel_support.jsonl — one example per line</span>
+{<span class="tok-str">"instruction"</span>: <span class="tok-str">"Customer wants to return an opened Aria, day 60."</span>,
+ <span class="tok-str">"response"</span>: <span class="tok-str">"Thanks for reaching out to Kestrel Home! Returns after</span>
+   <span class="tok-str">the 45-day window carry a 12% restocking fee, waived if it's</span>
+   <span class="tok-str">a confirmed hardware defect. Want me to check which applies?"</span>}</pre>
+      </div>
+      <p class="sub anim2" style="margin-top:12px">Every example teaches the <b>shape</b> of a good answer — the greeting, the policy, the follow-up. That shape is what the model learns.</p>
+    </section>
+
+    <!-- 29 · PIPELINE -->
+    <section class="slide" data-diagram="1" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · The pipeline</p>
+      <h2 class="anim">Base → data → train → evaluate → deploy.</h2>
+      <div class="svg-wrap anim2">
+        <svg viewBox="0 0 1040 170" width="1010">
+          <defs><marker id="m29" markerWidth="11" markerHeight="11" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6 Z" fill="var(--signal)"/></marker></defs>
+          <rect class="chip" x="20" y="56" width="150" height="60" rx="11"/><text x="95" y="80" class="chip-t">Base model</text><text x="95" y="101" class="chip-s">LLAMA-3.2-1B</text>
+          <line class="flow" x1="172" y1="86" x2="212" y2="86" marker-end="url(#m29)" style="stroke:var(--signal)"/>
+          <rect class="chip vec" x="214" y="56" width="150" height="60" rx="11"/><text x="289" y="80" class="chip-t">Curate data</text><text x="289" y="101" class="chip-s">JSONL PAIRS</text>
+          <line class="flow" x1="366" y1="86" x2="406" y2="86" marker-end="url(#m29)" style="stroke:var(--signal)"/>
+          <rect class="chip sig" x="408" y="56" width="140" height="60" rx="11"/><text x="478" y="80" class="chip-t">Train</text><text x="478" y="101" class="chip-s">QLORA</text>
+          <line class="flow" x1="550" y1="86" x2="590" y2="86" marker-end="url(#m29)" style="stroke:var(--signal)"/>
+          <rect class="chip act" x="592" y="56" width="200" height="60" rx="11"/><text x="692" y="80" class="chip-t">Evaluate</text><text x="692" y="101" class="chip-s">HELD-OUT SET</text>
+          <line class="flow" x1="794" y1="86" x2="834" y2="86" marker-end="url(#m29)" style="stroke:var(--signal)"/>
+          <rect class="chip" x="836" y="56" width="150" height="60" rx="11"/><text x="911" y="80" class="chip-t">Deploy</text><text x="911" y="101" class="chip-s">GGUF · OLLAMA</text>
+          <text x="520" y="150" class="svg-note" style="fill:var(--signal)">Evaluate on data the model never trained on — that's the only honest test</text>
+        </svg>
+      </div>
+      <p class="sub anim2" style="margin-top:6px">Hold out a slice of examples the model never sees in training. If it does well on <b>those</b>, it learned the pattern — not the answers.</p>
+    </section>
+
+    <!-- 30 · HYPERPARAMS -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · Real defaults</p>
+      <h2 class="anim">Sane starting hyperparameters.</h2>
+      <p class="sub anim2">You mostly won't touch these — but here's what a working QLoRA run looks like.</p>
+      <div class="term anim2">
+        <div class="cap"><i></i><i></i><i></i></div>
+<pre><span class="tok-kw">r</span> = <span class="tok-str">16</span>                              <span class="tok-com"># adapter rank</span>
+<span class="tok-kw">lora_alpha</span> = <span class="tok-str">16</span>
+<span class="tok-kw">per_device_train_batch_size</span> = <span class="tok-str">2</span>
+<span class="tok-kw">gradient_accumulation_steps</span> = <span class="tok-str">4</span>     <span class="tok-com"># effective batch = 8</span>
+<span class="tok-kw">max_steps</span> = <span class="tok-str">60</span>
+<span class="tok-kw">learning_rate</span> = <span class="tok-str">2e-4</span></pre>
+      </div>
+      <div class="callout warn anim2"><div class="lbl">Reading the training loss</div>
+        <p>A loss settling around <span class="hl">0.5–1.0</span> is healthy. A loss diving toward <b>~0</b> means the model is
+          <b>memorizing</b> — that's overfitting, not learning.</p></div>
+    </section>
+
+    <!-- 31 · UNSLOTH -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · The tool that makes it easy</p>
+      <h2 class="anim">Unsloth.</h2>
+      <p class="lead anim2">An open-source library that makes QLoRA fine-tuning <b>fast and cheap enough</b> to run on free hardware —
+        it optimizes the training so it fits where it otherwise wouldn't.</p>
+      <div class="grid3 anim2">
+        <div class="card s"><div class="t">~2× faster</div><div class="d">Optimized kernels cut training time roughly in half.</div></div>
+        <div class="card s"><div class="t">~70% less VRAM</div><div class="d">Fits training onto a <b>free Colab T4</b> — no GPU to buy.</div></div>
+        <div class="card"><div class="t">Great starter</div><div class="d">Recommended first model: <b>Llama-3.2-1B.</b> Small, fast, forgiving.</div></div>
+      </div>
+      <p class="sub anim2" style="margin-top:16px">Newest small family to know: <b>Gemma 4 E2B / E4B.</b> But for a first run, the 1B is the friendliest place to start.</p>
+    </section>
+
+    <!-- 32 · UNSLOTH STUDIO -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · For non-coders</p>
+      <h2 class="anim">Unsloth Studio — no code.</h2>
+      <p class="lead anim2">A UI over the same pipeline, so you can fine-tune <b>without writing Python.</b></p>
+      <div class="grid4 anim2">
+        <div class="card s"><div class="t">Data Recipes</div><div class="d">Turn a <b>PDF → dataset</b> automatically — point it at the Kestrel FAQ, get training pairs.</div></div>
+        <div class="card"><div class="t">Model Arena</div><div class="d">Base vs fine-tuned, <b>side by side</b>, same prompt — see the change directly.</div></div>
+        <div class="card"><div class="t">Observability</div><div class="d">Live <b>loss curve</b> and <b>GPU usage</b> while it trains.</div></div>
+        <div class="card v"><div class="t">Export</div><div class="d">One click to <b>GGUF / Ollama</b> — run your model locally.</div></div>
+      </div>
+      <p class="sub anim2" style="margin-top:16px">This is the on-ramp for a semi-technical team: PDF in, compared and exported model out.</p>
+    </section>
+
+    <!-- FT+ 1 · DATA UP CLOSE -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · The data, up close</p>
+      <h2 class="anim">Three shapes of training data.</h2>
+      <table class="map anim2">
+        <tr><th>Format</th><th>Each example is…</th><th>Teaches</th></tr>
+        <tr><td>Completion</td><td>prompt → response text</td><td class="cls">plain style</td></tr>
+        <tr><td>Chat</td><td>a messages list (system / user / assistant)</td><td class="cls">conversation</td></tr>
+        <tr><td>Preference</td><td>a prompt + <b>chosen</b> vs <b>rejected</b> reply</td><td class="cls">which is better</td></tr>
+      </table>
+      <div class="callout anim2"><div class="lbl">The Kestrel reply format</div>
+        <p>Every target answer has 5 parts: <b>greeting → policy → the number → follow-up question → sign-off.</b>
+          Split the set <span class="hl">~90 / 10</span> into train / validation before you start.</p></div>
+    </section>
+
+    <!-- FT+ 2 · MAKING THE DATA -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · Making the data</p>
+      <h2 class="anim">Generate, then validate — in code.</h2>
+      <p class="sub anim2">Bootstrap examples with a bigger model, then <b>check every line</b> before training. Quality ≫ quantity. Illustrative.</p>
+      <div class="term anim2">
+        <div class="cap"><i></i><i></i><i></i></div>
+<pre><span class="tok-com"># build_dataset.py — synthesize from the FAQ</span>
+<span class="tok-kw">for</span> q <span class="tok-kw">in</span> faq_questions:
+    a = big_model.<span class="tok-fn">answer</span>(q, style=KESTREL_TEMPLATE)
+    rows.<span class="tok-fn">append</span>({<span class="tok-str">"instruction"</span>: q, <span class="tok-str">"response"</span>: a})
+
+<span class="tok-com"># check_format.py — drop anything off-template</span>
+<span class="tok-kw">assert</span> r[<span class="tok-str">"response"</span>].<span class="tok-fn">startswith</span>(<span class="tok-str">"Thanks for reaching out to Kestrel"</span>)
+<span class="tok-kw">assert</span> r[<span class="tok-str">"response"</span>].<span class="tok-fn">rstrip</span>().<span class="tok-fn">endswith</span>(<span class="tok-str">"?"</span>)  <span class="tok-com"># needs a follow-up</span></pre>
+      </div>
+      <p class="sub anim2" style="margin-top:12px">A validator that rejects malformed rows is worth more than another thousand messy ones.</p>
+    </section>
+
+    <!-- FT+ 3 · ONE TRAINING STEP -->
+    <section class="slide" data-diagram="1" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · Inside one step</p>
+      <h2 class="anim">What one training step does.</h2>
+      <div class="svg-wrap anim2">
+        <svg viewBox="0 0 1040 200" width="1010">
+          <defs><marker id="mfs" markerWidth="11" markerHeight="11" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6 Z" fill="var(--signal)"/></marker></defs>
+          <rect class="chip act" x="20" y="66" width="180" height="64" rx="11"/><text x="110" y="92" class="chip-t">Forward</text><text x="110" y="114" class="chip-s">PREDICT THE REPLY</text>
+          <line class="flow" x1="200" y1="98" x2="244" y2="98" marker-end="url(#mfs)" style="stroke:var(--signal)"/>
+          <rect class="chip sig" x="246" y="66" width="180" height="64" rx="11"/><text x="336" y="92" class="chip-t">Loss</text><text x="336" y="114" class="chip-s">HOW WRONG?</text>
+          <line class="flow" x1="426" y1="98" x2="470" y2="98" marker-end="url(#mfs)" style="stroke:var(--signal)"/>
+          <rect class="chip vec" x="472" y="66" width="200" height="64" rx="11"/><text x="572" y="92" class="chip-t">Backward</text><text x="572" y="114" class="chip-s">BLAME EACH WEIGHT</text>
+          <line class="flow" x1="672" y1="98" x2="716" y2="98" marker-end="url(#mfs)" style="stroke:var(--signal)"/>
+          <rect class="chip" x="718" y="66" width="200" height="64" rx="11"/><text x="818" y="92" class="chip-t">Adjust</text><text x="818" y="114" class="chip-s">NUDGE THE ADAPTERS</text>
+          <text x="470" y="176" class="svg-note" style="fill:var(--signal)">Repeat over every example, many times — each pass moves the weights a little closer</text>
+        </svg>
+      </div>
+      <p class="sub anim2" style="margin-top:6px">Predict, measure the error, trace it back to the weights, nudge them down the gradient. That loop, thousands of times, <b>is</b> training.</p>
+    </section>
+
+    <!-- FT+ 4 · LoRA DEEPER -->
+    <section class="slide" data-diagram="1" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker v anim">04 · LoRA, a little deeper</p>
+      <h2 class="anim">Rank, alpha, and where it attaches.</h2>
+      <div class="two anim2">
+        <div class="svg-wrap" style="margin-top:0">
+          <svg viewBox="0 0 460 280" width="420">
+            <rect class="chip" x="150" y="40" width="160" height="90" rx="12"/><text x="230" y="78" class="chip-t">W  (frozen)</text><text x="230" y="100" class="chip-s">d × d · huge</text>
+            <rect class="chip vec" x="60" y="184" width="130" height="56" rx="10"/><text x="125" y="207" class="chip-t">A</text><text x="125" y="226" class="chip-s">d × r</text>
+            <rect class="chip vec" x="270" y="184" width="130" height="56" rx="10"/><text x="335" y="207" class="chip-t">B</text><text x="335" y="226" class="chip-s">r × d</text>
+            <text x="230" y="160" class="svg-note" style="fill:var(--vector)">ΔW = A · B  (tiny, rank r)</text>
+          </svg>
+        </div>
+        <div>
+          <ul class="pts" style="margin-top:0">
+            <li><b>rank <code class="k">r</code></b> — how wide the adapter is (8–32). Bigger = more capacity and more params.</li>
+            <li><b><code class="k">alpha</code></b> — a scaling knob on how strongly ΔW is applied.</li>
+            <li><b>target modules</b> — which layers get adapters (usually the attention projections).</li>
+          </ul>
+          <div class="callout v" style="margin-top:16px"><div class="lbl">Why it's portable</div>
+            <p>A and B are ~1% of the weights — a few MB you attach to, or detach from, the base at will.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FT+ 5 · EVALUATION -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · Did it actually work?</p>
+      <h2 class="anim">Evaluation, honestly.</h2>
+      <div class="cols anim2">
+        <div class="col good"><h3>How to check</h3><ul>
+          <li>Run the <b>held-out</b> set — data it never trained on</li>
+          <li><b>Format adherence</b>: does every reply hit the 5-part template?</li>
+          <li><b>LLM-as-judge</b>: a bigger model scores tone + correctness</li>
+        </ul></div>
+        <div class="col bad"><h3>Overfitting signals</h3><ul>
+          <li>Train loss → 0 but <b>validation loss rises</b></li>
+          <li>Great on trained tickets, brittle on new ones</li>
+          <li>Repeats training answers verbatim</li>
+        </ul></div>
+      </div>
+      <div class="callout warn anim2"><div class="lbl">The one rule</div>
+        <p>A score on data the model trained on is <b>marketing.</b> Only the held-out set tells you the truth.</p></div>
+    </section>
+
+    <!-- FT+ 6 · BEYOND SFT -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · Beyond SFT</p>
+      <h2 class="anim">DPO and GRPO, one line each.</h2>
+      <div class="cols anim2">
+        <div class="col good"><h3>DPO — preference</h3><ul>
+          <li>Trains on <b>chosen vs rejected</b> pairs</li>
+          <li>Teaches the model to <b>prefer</b> the better reply</li>
+          <li>Great for tone and judgment calls</li>
+        </ul></div>
+        <div class="col good"><h3>GRPO — reinforcement</h3><ul>
+          <li>Rewards good <b>outcomes</b>, not fixed answers</li>
+          <li>Used to train <b>reasoning</b> behavior</li>
+          <li>Heavier; reach for it last</li>
+        </ul></div>
+      </div>
+      <div class="callout warn anim2"><div class="lbl">The mental model</div>
+        <p><b>SFT teaches the format · DPO teaches the preference · GRPO teaches the reasoning.</b> Most support work stops at SFT.</p></div>
+    </section>
+
+    <!-- FT+ 7 · SERVING -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · Serving your model</p>
+      <h2 class="anim">From adapter to endpoint.</h2>
+      <div class="grid3 anim2">
+        <div class="card"><div class="t">1 · Merge</div><div class="d">Fold the LoRA adapter back into the base to get one standalone model.</div></div>
+        <div class="card v"><div class="t">2 · Package</div><div class="d">Export to <b>GGUF</b> for Ollama, or serve the merged weights with <b>vLLM</b>.</div></div>
+        <div class="card s"><div class="t">3 · Endpoint</div><div class="d">Unsloth Studio exposes an <b>OpenAI-compatible</b> URL — swap your base_url and go.</div></div>
+      </div>
+      <div class="callout anim2"><div class="lbl">Why OpenAI-compatible matters</div>
+        <p>Your existing agent code doesn't change — point it at the new endpoint and the fine-tuned model answers instead.</p></div>
+    </section>
+
+    <!-- FT+ 8 · COST & HARDWARE -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · Cost &amp; hardware</p>
+      <h2 class="anim">What it actually takes.</h2>
+      <table class="map anim2">
+        <tr><th>Model size</th><th>QLoRA VRAM (rough)</th><th>Runs on</th></tr>
+        <tr><td>1B</td><td>~5 GB</td><td class="cls">free Colab T4</td></tr>
+        <tr><td>7–8B</td><td>~12 GB</td><td class="cls">consumer GPU</td></tr>
+        <tr><td>70B</td><td>~48 GB</td><td class="cls">one H100</td></tr>
+      </table>
+      <div class="callout warn anim2"><div class="lbl">Where Unsloth helps</div>
+        <p>≈<b>2× faster</b> and ≈<b>70% less VRAM</b> — that's what pulls a run onto a free T4. QLoRA + a small model = fine-tune for $0.</p></div>
+    </section>
+
+    <!-- FT+ 9 · COMMON MISTAKES -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · Common mistakes</p>
+      <h2 class="anim">Four ways teams waste a run.</h2>
+      <div class="grid3 anim2">
+        <div class="card"><div class="t">Overfitting</div><div class="d">Too many epochs on too little data — it memorizes instead of generalizing.</div></div>
+        <div class="card v"><div class="t">Catastrophic forgetting</div><div class="d">Narrow data erodes skills the base had. Mix in some general examples.</div></div>
+        <div class="card s"><div class="t">Wrong tool</div><div class="d">Training to teach <b>facts</b> (a new promo code) — that's RAG's job, not the model's.</div></div>
+        <div class="card"><div class="t">Data leakage</div><div class="d">Validation rows that also appear in training — your score becomes a lie.</div></div>
+      </div>
+      <p class="sub anim2" style="margin-top:16px">Every one traces back to the same discipline: <b>right rung, clean data, honest held-out eval.</b></p>
+    </section>
+
+    <!-- 33 · BEFORE/AFTER DEMO -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · Demo — before &amp; after</p>
+      <h2 class="anim">Same prompt, two models.</h2>
+      <div class="term anim2">
+        <div class="cap"><i></i><i></i><i></i></div>
+<pre><span class="prompt">prompt: "Customer wants to return an opened thermostat."</span>
+
+<span class="prompt">[base Llama-3.2-1B]</span>
+<span class="warnline">Return policies vary by retailer. Generally you can return
+items within 30 days with a receipt. Check the store's website.</span>
+
+<span class="prompt">[fine-tuned on Kestrel support]</span>
+<span class="out">Thanks for reaching out to Kestrel Home! Opened returns past
+the 45-day window carry a 12% restocking fee — waived if it's a
+confirmed hardware defect. Want me to check which applies here?</span></pre>
+      </div>
+      <p class="sub anim2" style="margin-top:12px">The base model is generic and formatless. The fine-tune produces the <b>exact Kestrel template</b> — greeting, policy, brand voice, follow-up.</p>
+    </section>
+
+    <!-- 34 · PUNCHLINE -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · The punchline</p>
+      <h2 class="anim">Fine-tuning gave it the <span class="hl">voice.</span></h2>
+      <div class="cols anim2">
+        <div class="col good"><h3>Fine-tuning → the voice</h3><ul>
+          <li><b>How</b> to answer — tone, format, structure</li>
+          <li>The Kestrel greeting and follow-up, every time</li>
+          <li>Baked into the weights</li>
+        </ul></div>
+        <div class="col good"><h3>RAG → the facts</h3><ul>
+          <li><b>What</b> is true right now — 12% fee, WARMTH2024</li>
+          <li>Swap the doc, the facts update — no retrain</li>
+          <li>Pulled in at question time</li>
+        </ul></div>
+      </div>
+      <div class="callout warn anim2"><div class="lbl">Production = both</div>
+        <p>Ask the fine-tuned model a fact it never trained on — a new promo code — and it will still get it <span class="hl">wrong.</span>
+          That's RAG's job. Voice from fine-tuning, facts from RAG.</p></div>
+    </section>
+
+    <!-- 35 · PITFALLS -->
+    <section class="slide" data-section="SECTION 04 · FINE-TUNING">
+      <p class="kicker s anim">04 · What goes wrong</p>
+      <h2 class="anim">Three pitfalls to respect.</h2>
+      <div class="grid3 anim2">
+        <div class="card"><div class="t">Overfitting</div><div class="d">Trains too long / too little data → <b>memorizes</b> examples. Loss near 0 is the tell.</div></div>
+        <div class="card v"><div class="t">Catastrophic forgetting</div><div class="d">Over-training on narrow data can <b>erode general ability</b> the base model had.</div></div>
+        <div class="card s"><div class="t">Fooling yourself</div><div class="d">Judging on training data looks great and means nothing. <b>Evaluate on held-out.</b></div></div>
+      </div>
+      <div class="callout anim2"><div class="lbl">The through-line</div>
+        <p>All three are avoided the same way: <b>modest training, quality data, honest evaluation.</b></p></div>
+    </section>
+
+    <!-- CROSS+ 1 · PRODUCTION STACK -->
+    <section class="slide" data-diagram="1" data-section="SECTION 05 · IT CONNECTS">
+      <p class="kicker anim">05 · The whole ladder, one agent</p>
+      <h2 class="anim">The production stack.</h2>
+      <div class="svg-wrap anim2">
+        <svg viewBox="0 0 1040 260" width="1010">
+          <defs><marker id="mps" markerWidth="11" markerHeight="11" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6 Z" fill="var(--pipe)"/></marker></defs>
+          <rect class="chip sig" x="430" y="18" width="180" height="60" rx="12"/><text x="520" y="42" class="chip-t">Fine-tuned model</text><text x="520" y="63" class="chip-s">THE KESTREL VOICE</text>
+          <rect class="chip" x="40" y="120" width="170" height="60" rx="12"/><text x="125" y="144" class="chip-t">Prompt</text><text x="125" y="165" class="chip-s">THE ROLE</text>
+          <rect class="chip" x="230" y="120" width="170" height="60" rx="12"/><text x="315" y="144" class="chip-t">RAG</text><text x="315" y="165" class="chip-s">THE FACTS</text>
+          <rect class="chip act" x="420" y="120" width="180" height="60" rx="12"/><text x="510" y="144" class="chip-t">MCP tools</text><text x="510" y="165" class="chip-s">THE ACTIONS</text>
+          <rect class="chip vec" x="620" y="120" width="170" height="60" rx="12"/><text x="705" y="144" class="chip-t">Skills</text><text x="705" y="165" class="chip-s">THE KNOW-HOW</text>
+          <rect class="chip" x="830" y="120" width="170" height="60" rx="12"/><text x="915" y="144" class="chip-t">Ticketing</text><text x="915" y="165" class="chip-s">EXTERNAL SYSTEM</text>
+          <line class="flow" x1="125" y1="120" x2="475" y2="80" marker-end="url(#mps)"/>
+          <line class="flow" x1="315" y1="120" x2="500" y2="80" marker-end="url(#mps)"/>
+          <line class="flow" x1="530" y1="120" x2="545" y2="80" marker-end="url(#mps)"/>
+          <line class="flow vec" x1="705" y1="120" x2="570" y2="80" marker-end="url(#mps)"/>
+          <line class="flow" x1="600" y1="150" x2="826" y2="150" marker-end="url(#mps)"/>
+          <text x="520" y="235" class="svg-note">One agent — voice from fine-tuning, facts from RAG, actions from MCP, know-how from skills</text>
+        </svg>
+      </div>
+      <p class="sub anim2" style="margin-top:6px">Production isn't one rung — it's the <b>whole ladder</b> composed, each layer doing the job only it can do.</p>
+    </section>
+
+    <!-- CROSS+ 2 · WHERE TO GO NEXT -->
+    <section class="slide" data-section="SECTION 05 · IT CONNECTS">
+      <p class="kicker anim">05 · Keep going</p>
+      <h2 class="anim">Where to go next.</h2>
+      <div class="grid3 anim2">
+        <div class="card"><div class="t">MCP</div><div class="d"><b>modelcontextprotocol.io</b> — the spec, quickstarts, and reference servers to clone.</div></div>
+        <div class="card v"><div class="t">Skills</div><div class="d"><b>platform.claude.com</b> — Agent Skills docs: authoring, uploading, and the SDK.</div></div>
+        <div class="card s"><div class="t">Fine-tuning</div><div class="d"><b>unsloth.ai/docs</b> — QLoRA notebooks you can run free on Colab today.</div></div>
+      </div>
+      <div class="callout anim2"><div class="lbl">Your next hour</div>
+        <p>Pick the <b>lowest</b> rung your problem needs and build just that. Climb only when it genuinely can't reach.</p></div>
+    </section>
+
+    <!-- 36 · IT ALL CONNECTS -->
+    <section class="slide" data-diagram="1" data-section="SECTION 05 · IT CONNECTS">
+      <p class="kicker anim">05 · One tool, the whole ladder</p>
+      <h2 class="anim">Unsloth touches every rung.</h2>
+      <table class="map anim2">
+        <tr><th>Piece</th><th>What it is</th><th>Rung</th></tr>
+        <tr><td>Unsloth</td><td>Fine-tune the model itself</td><td class="cls">5 · Fine-tune</td></tr>
+        <tr><td>Unsloth MCP server</td><td>Lets an agent <b>drive training</b> as a tool</td><td class="cls">3 · Tools / MCP</td></tr>
+        <tr><td>Unsloth skill</td><td>Packaged <b>how-to</b> that guides the workflow</td><td class="cls">4 · Skills</td></tr>
+        <tr><td>Unsloth Studio</td><td>Serves your model to Claude Code via an <b>OpenAI-compatible endpoint</b></td><td class="cls">the loop closes</td></tr>
+      </table>
+      <p class="sub anim2" style="margin-top:16px">The same ecosystem spans the model, the tool interface, the packaged know-how, and serving it back into your agent.</p>
+    </section>
+
+    <!-- 37 · KESTREL UP THE LADDER -->
+    <section class="slide" data-section="SECTION 05 · IT CONNECTS">
+      <p class="kicker anim">05 · Putting it together</p>
+      <h2 class="anim">Build the Kestrel agent, rung by rung.</h2>
+      <div class="grid3 anim2">
+        <div class="card"><div class="t">1 · Prompt</div><div class="d">"You are a Kestrel Home support agent." Set the role.</div></div>
+        <div class="card"><div class="t">2 · RAG the FAQ</div><div class="d">Ground it in the doc — 12% fee, 26-month warranty, WARMTH2024.</div></div>
+        <div class="card"><div class="t">3 · MCP the tickets</div><div class="d">Connect the ticketing system so it can actually <b>act.</b></div></div>
+        <div class="card v"><div class="t">4 · Skill the escalation</div><div class="d">Package the 72h → Tier 2, fire → Tier 3 playbook.</div></div>
+        <div class="card s"><div class="t">5 · Fine-tune the voice</div><div class="d">Bake in the Kestrel greeting and template as the default.</div></div>
+        <div class="card"><div class="t">= The agent</div><div class="d">Each rung added only when the one below couldn't do it.</div></div>
+      </div>
+    </section>
+
+    <!-- 38 · Q&A -->
+    <section class="slide" data-section="SECTION 06 · Q&amp;A">
+      <p class="kicker anim">06 · Anticipated questions</p>
+      <h2 class="anim">The four you'll be asked.</h2>
+      <div class="grid2 anim2">
+        <div class="card"><div class="t">"Isn't MCP just function calling?"</div>
+          <div class="d">It's a <b>standard</b> for it — portable across apps. Write the server once, every MCP host uses it.</div></div>
+        <div class="card v"><div class="t">"Skill vs system prompt?"</div>
+          <div class="d">Progressive disclosure + <b>model-invoked</b> + bundles code + shareable. A prompt is none of those.</div></div>
+        <div class="card s"><div class="t">"Fine-tune so it knows our docs?"</div>
+          <div class="d"><b>No</b> — that's RAG. Fine-tuning is behavior, format, voice. Facts belong in context.</div></div>
+        <div class="card"><div class="t">"How much data / need a GPU?"</div>
+          <div class="d"><b>50–100 great examples</b> shift the format. QLoRA runs on a <b>free T4.</b></div></div>
+      </div>
+    </section>
+
+    <!-- 39 · CLOSING -->
+    <section class="slide" data-section="MCP · SKILLS · FINE-TUNING">
+      <div class="anim"><span class="pill end">■ End</span></div>
+      <h2 class="anim2" style="font-size:52px;margin-top:20px">Climb only as high as you need.</h2>
+      <p class="lead anim2" style="max-width:940px">Prompt, RAG, <span class="hlp">MCP</span>, <span class="hlv">Skills</span>,
+        <span class="hl">Fine-tuning</span> — one ladder from cheapest to heaviest. MCP standardizes the tools, Skills package the know-how,
+        and fine-tuning changes the model itself. Most days, you never reach the top.</p>
+      <div class="title-foot anim2">THANK YOU · QUESTIONS WELCOME · lesson.html</div>
+    </section>
+
+    <div class="progress"><div id="bar"></div></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var eyebrow = document.getElementById('eyebrow');
+  var counter = document.getElementById('counter');
+  var bar = document.getElementById('bar');
+  var deck = document.getElementById('deck');
+  var stage = document.getElementById('stage');
+  var idx = 0;
+
+  function pad(n){ return (n<10?'0':'') + n; }
+
+  function fit(){
+    var s = Math.min(window.innerWidth/1280, window.innerHeight/720);
+    deck.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+  }
+
+  function show(n){
+    idx = Math.max(0, Math.min(total-1, n));
+    for (var i=0;i<slides.length;i++){ slides[i].classList.toggle('active', i===idx); }
+    var sec = slides[idx].getAttribute('data-section') || '';
+    eyebrow.textContent = sec;
+    counter.textContent = pad(idx+1) + ' / ' + pad(total);
+    bar.style.width = ((idx+1)/total*100) + '%';
+    var want = '#slide-' + (idx+1);
+    if (location.hash !== want){ history.replaceState(null, '', want); }
+  }
+  function next(){ show(idx+1); }
+  function prev(){ show(idx-1); }
+
+  window.addEventListener('keydown', function(e){
+    switch(e.key){
+      case 'ArrowRight': case 'PageDown': case ' ': e.preventDefault(); next(); break;
+      case 'ArrowLeft': case 'PageUp': e.preventDefault(); prev(); break;
+      case 'Home': e.preventDefault(); show(0); break;
+      case 'End': e.preventDefault(); show(total-1); break;
+      case 'f': case 'F':
+        if (!document.fullscreenElement){ if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); }
+        else { if (document.exitFullscreen) document.exitFullscreen(); }
+        break;
+    }
+  });
+
+  stage.addEventListener('click', function(e){
+    if (e.clientX < window.innerWidth/2) prev(); else next();
+  });
+
+  window.addEventListener('resize', fit);
+  window.addEventListener('hashchange', function(){
+    var m = location.hash.match(/#slide-(\d+)/);
+    if (m){ var n = (+m[1]) - 1; if (n !== idx) show(n); }
+  });
+
+  var m0 = location.hash.match(/#slide-(\d+)/);
+  if (m0){ idx = Math.max(0, Math.min(total-1, (+m0[1]) - 1)); }
+  fit();
+  show(idx);
+})();
+</script>
+</body>
+</html>

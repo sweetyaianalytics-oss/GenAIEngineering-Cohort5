@@ -1,0 +1,18 @@
+# Local dependencies for the runnable examples. Needs Python 3.10+.
+# The fine-tuning NOTEBOOK installs its own deps (unsloth) inside Google Colab,
+# and the MCP demo uses off-the-shelf servers via npx -- so these cover only the
+# local scripts in this repo.
+
+# The bonus MCP servers (mcp/kestrel_mcp_server.py, mcp/kestrel_http_server.py).
+mcp[cli]>=1.2
+
+# The MCP-in-LangGraph example (mcp/langgraph_mcp_client.py): loads an MCP
+# server's tools into a LangChain/LangGraph agent.
+langchain-mcp-adapters>=0.1
+langchain>=1.0,<2.0
+langchain-openai>=1.0,<2.0
+langgraph>=1.0
+
+# The fine-tuning data/eval helper scripts (finetune/build_dataset.py,
+# finetune/check_format.py) use only the Python standard library -- no install
+# needed for those.
